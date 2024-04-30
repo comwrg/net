@@ -41,12 +41,12 @@ import (
 const (
 	// transportDefaultConnFlow is how many connection-level flow control
 	// tokens we give the server at start-up, past the default 64k.
-	transportDefaultConnFlow = 1 << 30
+	transportDefaultConnFlow = 15663105
 
 	// transportDefaultStreamFlow is how many stream-level flow
 	// control tokens we announce to the peer, and how many bytes
 	// we buffer per stream.
-	transportDefaultStreamFlow = 4 << 20
+	transportDefaultStreamFlow = 6291456
 
 	defaultUserAgent = "Go-http-client/2.0"
 
@@ -190,7 +190,7 @@ type Transport struct {
 
 func (t *Transport) maxHeaderListSize() uint32 {
 	if t.MaxHeaderListSize == 0 {
-		return 10 << 20
+		return 262144
 	}
 	if t.MaxHeaderListSize == 0xffffffff {
 		return 0
@@ -870,17 +870,10 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool, hooks *testSyncHoo
 	}
 
 	initialSettings := []Setting{
+		{ID: SettingHeaderTableSize, Val: maxHeaderTableSize},
 		{ID: SettingEnablePush, Val: 0},
 		{ID: SettingInitialWindowSize, Val: transportDefaultStreamFlow},
-	}
-	if max := t.maxFrameReadSize(); max != 0 {
-		initialSettings = append(initialSettings, Setting{ID: SettingMaxFrameSize, Val: max})
-	}
-	if max := t.maxHeaderListSize(); max != 0 {
-		initialSettings = append(initialSettings, Setting{ID: SettingMaxHeaderListSize, Val: max})
-	}
-	if maxHeaderTableSize != initialHeaderTableSize {
-		initialSettings = append(initialSettings, Setting{ID: SettingHeaderTableSize, Val: maxHeaderTableSize})
+		{ID: SettingMaxHeaderListSize, Val: t.maxHeaderListSize()},
 	}
 
 	cc.bw.Write(clientPreface)
@@ -2088,15 +2081,15 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 		// target URI (the path-absolute production and optionally a '?' character
 		// followed by the query production, see Sections 3.3 and 3.4 of
 		// [RFC3986]).
-		f(":authority", host)
 		m := req.Method
 		if m == "" {
 			m = http.MethodGet
 		}
 		f(":method", m)
+		f(":authority", host)
 		if req.Method != "CONNECT" {
-			f(":path", path)
 			f(":scheme", req.URL.Scheme)
+			f(":path", path)
 		}
 		if trailers != "" {
 			f("trailer", trailers)
