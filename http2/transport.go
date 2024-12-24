@@ -40,12 +40,12 @@ import (
 const (
 	// transportDefaultConnFlow is how many connection-level flow control
 	// tokens we give the server at start-up, past the default 64k.
-	transportDefaultConnFlow = 1 << 30
+	transportDefaultConnFlow = 15663105
 
 	// transportDefaultStreamFlow is how many stream-level flow
 	// control tokens we announce to the peer, and how many bytes
 	// we buffer per stream.
-	transportDefaultStreamFlow = 4 << 20
+	transportDefaultStreamFlow = 6291456
 
 	defaultUserAgent = "Go-http-client/2.0"
 
@@ -248,7 +248,7 @@ func (t *Transport) maxHeaderListSize() uint32 {
 		}
 	}
 	if n <= 0 {
-		return 10 << 20
+		return 262144
 	}
 	if n >= 0xffffffff {
 		return 0
@@ -882,10 +882,11 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	}
 
 	initialSettings := []Setting{
+		{ID: SettingHeaderTableSize, Val: maxHeaderTableSize},
 		{ID: SettingEnablePush, Val: 0},
 		{ID: SettingInitialWindowSize, Val: uint32(cc.initialStreamRecvWindowSize)},
 	}
-	initialSettings = append(initialSettings, Setting{ID: SettingMaxFrameSize, Val: conf.MaxReadFrameSize})
+	// initialSettings = append(initialSettings, Setting{ID: SettingMaxFrameSize, Val: conf.MaxReadFrameSize})
 	if max := t.maxHeaderListSize(); max != 0 {
 		initialSettings = append(initialSettings, Setting{ID: SettingMaxHeaderListSize, Val: max})
 	}
@@ -2143,15 +2144,15 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 		// target URI (the path-absolute production and optionally a '?' character
 		// followed by the query production, see Sections 3.3 and 3.4 of
 		// [RFC3986]).
-		f(":authority", host)
 		m := req.Method
 		if m == "" {
 			m = http.MethodGet
 		}
 		f(":method", m)
+		f(":authority", host)
 		if !isNormalConnect(req) {
-			f(":path", path)
 			f(":scheme", req.URL.Scheme)
+			f(":path", path)
 		}
 		if trailers != "" {
 			f("trailer", trailers)
